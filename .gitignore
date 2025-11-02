@@ -35,3 +35,4 @@ Makefile
 doc-dev
 
 *.csv
+.coverage
