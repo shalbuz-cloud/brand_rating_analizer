@@ -1,6 +1,7 @@
 """
 Модуль для вычисления статистик по брендам.
 """
+
 from typing import List, Dict, Any
 from collections import defaultdict
 
@@ -16,7 +17,7 @@ def calculate_brand_ratings(products: List[Dict[str, Any]]) -> List[Dict[str, An
 
     # Суммируем рейтинги и подсчитываем количество товаров для каждого бренда
     for product in products:
-        brand = product['brand']
+        brand = product['brand'].lower()
         rating = product['rating']
 
         brand_stats[brand]['total_rating'] += rating
