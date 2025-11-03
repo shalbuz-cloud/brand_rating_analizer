@@ -180,9 +180,3 @@ elif args.report == 'average-price':
 
 report_table = generate_report(args.report, brand_data)
 ```
-
-5. Добавьте тесты для нового отчета
-
-```python
-
-```
