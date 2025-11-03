@@ -1,5 +1,6 @@
 import argparse
 
+from core.debug import set_debug_mode, debug_print, error_print
 from core.reader import read_product_files
 from core.calculator import calculate_brand_ratings
 from core.reporter import generate_report
@@ -16,7 +17,7 @@ def main() -> int:
         epilog='''
         Примеры использования:
             python main.py --files products1.csv products2.csv --report average-rating
-            python main.py -f data/*.csv -r average-rating
+            python main.py --files data/*.csv --report average-rating
         '''
     )
 
@@ -36,31 +37,45 @@ def main() -> int:
         help='Тип отчета для генерации'
     )
 
-    # Парсим аргументы
+    # DEBUG
+    parser.add_argument(
+        '--debug',
+        action='store_true',
+        help='Включить подробный вывод для отладки'
+    )
+
     args = parser.parse_args()
+
+    # Устанавливаем debug режим для всех модулей
+    set_debug_mode(args.debug)
 
     try:
         # Читаем данные из всех переданных файлов
-        print('Чтение файлов %s' % ", ".join(args.files))
+        debug_print('Чтение файлов %s' % ", ".join(args.files))
         products = read_product_files(args.files)
-        print('Прочитано %d записей о продуктах' % len(products))
+        debug_print('Прочитано %d записей о продуктах' % len(products))
 
         # Вычисляем средние рейтинги по брендам
         brand_ratings = calculate_brand_ratings(products)
-        print('Обработано %d брендов' % len(brand_ratings))
+        debug_print('Обработано %d брендов' % len(brand_ratings))
 
         # Генерируем и выводим отчет
-        print('\nОтчет: %s' % args.report)
-        print('=' * 40)
+        debug_print('\nОтчет: %s' % args.report)
+        debug_print('=' * 40)
+
         report_table = generate_report(args.report, brand_ratings)
+
         print(report_table)
 
     except FileNotFoundError as e:
-        print('Ошибка: файл не найден - %s' % e)
+        error_print('Ошибка: файл не найден - %s' % e)
         return 1
 
     except Exception as e:
-        print('Ошибка при выполнении скрипта: %s' % e)
+        error_print('Ошибка при выполнении скрипта: %s' % e)
+        if args.debug:
+            import traceback
+            debug_print('Подробности ошибки:\n%s' % traceback.format_exc())
         return 1
 
     return 0

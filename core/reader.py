@@ -5,6 +5,7 @@
 import csv
 from typing import List, Dict, Any
 
+from core.debug import debug_print
 from core.utils.validators import is_empty_row, validate_required_fields, validate_rating
 from core.utils.converters import safe_strip, safe_float
 
@@ -23,6 +24,8 @@ def read_product_files(file_paths: List[str]) -> List[Dict[str, Any]]:
 
     for file_path in file_paths:
         try:
+            debug_print('Обработка файла: %s' % file_path)
+
             with open(file_path, 'r', encoding='utf-8') as file:
                 reader = csv.DictReader(file)
 
@@ -43,16 +46,20 @@ def read_product_files(file_paths: List[str]) -> List[Dict[str, Any]]:
                         % (file_path, missing_columns, list(reader.fieldnames))
                     )
 
+                processed_rows = 0
+                skipped_rows = 0
+
                 # Читаем и обрабатываем каждую строку
                 for row_num, row in enumerate(reader, start=2):  # 1я строка - заголовок
 
                     try:
                         # Пропускаем пустые строки
                         if is_empty_row(row):
-                            print(
+                            debug_print(
                                 'Предупреждение: Пропуск пустой строки %d в файле %s'
                                 % (row_num, file_path)
                             )
+                            skipped_rows += 1
                             continue
 
                         # Валидируем сырые данные
@@ -76,13 +83,20 @@ def read_product_files(file_paths: List[str]) -> List[Dict[str, Any]]:
                         validate_rating(product['rating'])
 
                         all_products.append(product)
+                        processed_rows += 1
 
                     except (ValueError, KeyError) as e:
-                        print(
+                        debug_print(
                             'Предупреждение: Пропуск строки %d в файле %s: %s'
                             % (row_num, file_path, e)
                         )
+                        skipped_rows += 1
                         continue
+
+                debug_print(
+                    'Файл %s: обработано %d строк, пропущено %d строк'
+                    % (file_path, processed_rows, skipped_rows)
+                )
 
         except FileNotFoundError:
             raise FileNotFoundError('Файл %s не найден' % file_path)
