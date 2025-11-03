@@ -5,6 +5,9 @@
 import csv
 from typing import List, Dict, Any
 
+from core.utils.validators import is_empty_row, validate_required_fields, validate_rating
+from core.utils.converters import safe_strip, safe_float
+
 
 def read_product_files(file_paths: List[str]) -> List[Dict[str, Any]]:
     """
@@ -21,34 +24,57 @@ def read_product_files(file_paths: List[str]) -> List[Dict[str, Any]]:
     for file_path in file_paths:
         try:
             with open(file_path, 'r', encoding='utf-8') as file:
-                reader = csv.DictReader(file)  # TODO: Вспомнить библиотеку CSV
+                reader = csv.DictReader(file)
+
+                if reader.fieldnames is None:
+                    raise ValueError(
+                        'Файл %s не содержит заголовков или имеет неверный формат'
+                        % file_path
+                    )
 
                 # Проверяем, что все необходимые колонки присутствуют
                 required_columns = ["name", "brand", "price", "rating"]
-                if not all(column in reader.fieldnames for column in required_columns):
+                missing_columns = [col for col in required_columns if col not in reader.fieldnames]
+                if missing_columns:
                     raise ValueError(
-                        'Файл %s не содержит все необходимые колонки: %s'
-                        % (file_path, required_columns)
+                        'Файл %s не содержит все необходимые колонки. '
+                        'Отсутствуют: %s. '
+                        'Найдены: %s'
+                        % (file_path, missing_columns, list(reader.fieldnames))
                     )
 
-                # Чтение и обработка файла
+                # Читаем и обрабатываем каждую строку
                 for row_num, row in enumerate(reader, start=2):  # 1я строка - заголовок
 
                     try:
-                        # Валидируем и преобразуем данные
+                        # Пропускаем пустые строки
+                        if is_empty_row(row):
+                            print(
+                                'Предупреждение: Пропуск пустой строки %d в файле %s'
+                                % (row_num, file_path)
+                            )
+                            continue
+
+                        # Валидируем сырые данные
+                        raw_product = {
+                            "name": row.get('name'),
+                            "brand": row.get('brand'),
+                            "price": row.get('price'),
+                            "rating": row.get('rating'),
+                        }
+                        validate_required_fields(raw_product)
+
+                        # Очистка и преобразование
                         product = {
-                            "name": row['name'].strip(),
-                            "brand": row['brand'].strip().lower(),
-                            "price": float(row['price']),
-                            "rating": float(row['rating']),
+                            "name": safe_strip(raw_product['name']),
+                            "brand": safe_strip(raw_product['brand']),
+                            "price": safe_float(raw_product['price']),
+                            "rating": safe_float(raw_product['rating']),
                         }
 
-                        # Проверяем корректность рейтинга (должен быть от 0 до 5)
-                        if not 0 <= product['rating'] <= 5:
-                            raise ValueError(
-                                'Рейтинг должен быть отт 0 до 5, получено: %d'
-                                % product['rating']
-                            )
+                        # Дополнительная валидация на очищенных числовых данных
+                        validate_rating(product['rating'])
+
                         all_products.append(product)
 
                     except (ValueError, KeyError) as e:
