@@ -33,7 +33,7 @@ def main() -> int:
         '--report',
         choices=['average-rating'],  # Пока только один тип отчета, но легко расширяемо
         required=True,
-        help='Тип отчета для генерации (пока доступен только average-rating)'
+        help='Тип отчета для генерации'
     )
 
     # Парсим аргументы
@@ -50,7 +50,7 @@ def main() -> int:
         print('Обработано %d брендов' % len(brand_ratings))
 
         # Генерируем и выводим отчет
-        print('\nОтчет: %s' % args.report)  # TODO: генерация вывода отчета через библиотеку "tabulate"
+        print('\nОтчет: %s' % args.report)
         print('=' * 40)
         report_table = generate_report(args.report, brand_ratings)
         print(report_table)
@@ -67,4 +67,4 @@ def main() -> int:
 
 
 if __name__ == '__main__':
-    exit(main())  # TODO: Для чего тут exit(main)
+    exit(main())
