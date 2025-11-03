@@ -1,6 +1,7 @@
 """
 Модуль для генерации различных типов отчетов.
 """
+
 from typing import List, Dict, Any
 from tabulate import tabulate
 
