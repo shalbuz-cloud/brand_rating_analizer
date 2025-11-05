@@ -1,0 +1,32 @@
+"""
+Data Transfer Objects (DTO) для проекта.
+"""
+
+from dataclasses import dataclass
+from typing import List, Optional
+
+
+@dataclass
+class Product:
+    """DTO для продукта."""
+    name: str
+    brand: str
+    price: float
+    rating: float
+
+    def __post_init__(self):
+        """Валидация после инициализации."""
+        if not 0 <= self.rating <= 5:
+            raise ValueError('Рейтинг должен быть от 0 до 5, получено: %.2f' % self.rating)
+
+
+@dataclass
+class BrandStats:
+    """DTO для статистики бренда."""
+    brand: str
+    average_rating: float
+    product_count: int
+
+    def __post_init__(self):
+        """Округление рейтинга после инициализации."""
+        self.average_rating = round(self.average_rating, 2)
