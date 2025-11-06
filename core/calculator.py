@@ -2,38 +2,51 @@
 Модуль для вычисления статистик по брендам.
 """
 
-from typing import List, Dict, Any
+from abc import ABC, abstractmethod
+from typing import List, Dict
 from collections import defaultdict
 
+from core.models import Product, BrandStatistics
 
-def calculate_brand_ratings(products: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-    """
-    Вычисляет средний рейтинг для каждого бренда.
 
-    :param products: Список продуктов с информацией о брендах и рейтингах
-    :return: Отсортированный список словарей с брендами и их средним рейтингом
-    """
-    brand_stats = defaultdict(lambda: {"total_rating": 0, "count": 0})
+class StatisticsCalculator(ABC):
+    """Абстрактный базовый класс для расчета статистик."""
 
-    # Суммируем рейтинги и подсчитываем количество товаров для каждого бренда
-    for product in products:
-        brand = product['brand'].lower()
-        rating = product['rating']
+    @abstractmethod
+    def calculate(self, products: List[Product]) -> List[BrandStatistics]:
+        pass
 
-        brand_stats[brand]['total_rating'] += rating
-        brand_stats[brand]['count'] += 1
 
-    # Вычисляем средние рейтинги и формируем результат
-    result = []
-    for brand, stats in brand_stats.items():
-        average_rating = stats['total_rating'] / stats['count']
-        result.append({
-            "brand": brand,
-            "average_rating": round(average_rating, 2),
-            "product_count": stats['count']  # Может пригодиться для расширения функционала,
-        })
+class BrandRatingCalculator(StatisticsCalculator):
+    """Калькулятор средних рейтингов по брендам."""
 
-    # Сортируем по убыванию рейтинга (от высшего к низшему)
-    result.sort(key=lambda x: x['average_rating'], reverse=True)
+    def calculate(self, products: List[Product]) -> List[BrandStatistics]:
+        if not products:
+            return []
 
-    return result
+        brand_stats = self._aggregate_brand_data(products)
+        return self._create_brand_statistics(brand_stats)
+
+    @staticmethod
+    def _aggregate_brand_data(products: List[Product]) -> Dict[str, dict]:
+        brand_stats = defaultdict(lambda: {"total_rating": 0, "count": 0})
+
+        for product in products:
+            brand_stats[product.brand]['total_rating'] += product.rating
+            brand_stats[product.brand]['count'] += 1
+
+        return brand_stats
+
+    @staticmethod
+    def _create_brand_statistics(brand_stats: dict) -> List[BrandStatistics]:
+        statistics = []
+
+        for brand, stats in brand_stats.items():
+            avg_rating = stats['total_rating'] / stats['count']
+            statistics.append(BrandStatistics(
+                brand=brand,
+                average_rating=avg_rating,
+                product_count=stats['count'],
+            ))
+
+        return sorted(statistics, key=lambda x: x.average_rating, reverse=True)
