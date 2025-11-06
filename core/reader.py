@@ -2,106 +2,138 @@
 Модуль для чтения и обработки CSV файлов с данными о продуктах.
 """
 
+from abc import ABC, abstractmethod
 import csv
-from typing import List, Dict, Any
+from typing import List
 
 from core.debug import debug_print
-from core.utils.validators import is_empty_row, validate_required_fields, validate_rating
-from core.utils.converters import safe_strip, safe_float
+from core.models import Product
+from core.utils.validators import DataValidator
+from core.utils.converters import DataConverter
 
 
-def read_product_files(file_paths: List[str]) -> List[Dict[str, Any]]:
-    """
-    Читает данные о продуктах из одного или нескольких CSV файлов.
-    :param file_paths: Список путей к CSV файлам
-    :return: Список словарей с данными о продуктах
+class FileReader(ABC):
+    """Абстрактный базовый класс для чтения файлов."""
 
-    :raises
-        FileNotFoundError: Если какой-либо файл не найден
-        ValueError: Если данные в файле некорректны
-    """
-    all_products = []
+    @abstractmethod
+    def read(self, file_paths: List[str]) -> List[Product]:
+        pass
 
-    for file_path in file_paths:
-        try:
+
+class CSVProductReader(FileReader):
+    """Реализация чтения CSV файлов с продуктами."""
+
+    def __init__(self, validator: DataValidator, converter: DataConverter):
+        self.validator = validator
+        self.converter = converter
+
+    def read(self, file_paths: List[str]) -> List[Product]:
+        """
+        Читает данные о продуктах из одного или нескольких CSV файлов.
+
+        :param file_paths: Список путей к CSV файлам
+
+        :return: Список объектов Product
+
+        :raises
+            FileNotFoundError: Если файл не найден
+            ValueError: Если данные некорректны
+        """
+        products: List[Product] = []
+
+        for file_path in file_paths:
             debug_print('Обработка файла: %s' % file_path)
+            products.extend(self._read_single_file(file_path))
 
+        debug_print('Всего прочитано %d записей о продуктах' % len(products))
+        return products
+
+    def _read_single_file(self, file_path: str) -> List[Product]:
+        """
+        Читает данные из одного CSV файла.
+
+        :param file_path: Путь к CSV файлу
+
+        :return: Список объектов Product из файла
+        """
+
+        try:
             with open(file_path, 'r', encoding='utf-8') as file:
                 reader = csv.DictReader(file)
 
-                if reader.fieldnames is None:
-                    raise ValueError(
-                        'Файл %s не содержит заголовков или имеет неверный формат'
-                        % file_path
-                    )
+                if not reader.fieldnames:
+                    raise ValueError('File %s has no headers' % file_path)
 
-                # Проверяем, что все необходимые колонки присутствуют
-                required_columns = ["name", "brand", "price", "rating"]
-                missing_columns = [col for col in required_columns if col not in reader.fieldnames]
-                if missing_columns:
-                    raise ValueError(
-                        'Файл %s не содержит все необходимые колонки. '
-                        'Отсутствуют: %s. '
-                        'Найдены: %s'
-                        % (file_path, missing_columns, list(reader.fieldnames))
-                    )
-
-                processed_rows = 0
-                skipped_rows = 0
-
-                # Читаем и обрабатываем каждую строку
-                for row_num, row in enumerate(reader, start=2):  # 1я строка - заголовок
-
-                    try:
-                        # Пропускаем пустые строки
-                        if is_empty_row(row):
-                            debug_print(
-                                'Предупреждение: Пропуск пустой строки %d в файле %s'
-                                % (row_num, file_path)
-                            )
-                            skipped_rows += 1
-                            continue
-
-                        # Валидируем сырые данные
-                        raw_product = {
-                            "name": row.get('name'),
-                            "brand": row.get('brand'),
-                            "price": row.get('price'),
-                            "rating": row.get('rating'),
-                        }
-                        validate_required_fields(raw_product)
-
-                        # Очистка и преобразование
-                        product = {
-                            "name": safe_strip(raw_product['name']),
-                            "brand": safe_strip(raw_product['brand']),
-                            "price": safe_float(raw_product['price']),
-                            "rating": safe_float(raw_product['rating']),
-                        }
-
-                        # Дополнительная валидация на очищенных числовых данных
-                        validate_rating(product['rating'])
-
-                        all_products.append(product)
-                        processed_rows += 1
-
-                    except (ValueError, KeyError) as e:
-                        debug_print(
-                            'Предупреждение: Пропуск строки %d в файле %s: %s'
-                            % (row_num, file_path, e)
-                        )
-                        skipped_rows += 1
-                        continue
-
-                debug_print(
-                    'Файл %s: обработано %d строк, пропущено %d строк'
-                    % (file_path, processed_rows, skipped_rows)
-                )
+                self._validate_headers(reader.fieldnames, file_path)
+                return self._process_rows(reader, file_path)
 
         except FileNotFoundError:
-            raise FileNotFoundError('Файл %s не найден' % file_path)
-
+            raise FileNotFoundError('File %s not found' % file_path)
         except Exception as e:
-            raise ValueError('Ошибка при чтении файла %s: %s' % (file_path, e))
+            raise ValueError('Error reading file %s: %s' % (file_path, e))
 
-    return all_products
+    @staticmethod
+    def _validate_headers(headers: List[str], file_path: str) -> None:
+        required_columns = ["name", "brand", "price", "rating"]
+        missing = [col for col in required_columns if col not in headers]
+
+        if missing:
+            raise ValueError(
+                'File %s missing required columns: %s'
+                'Found: %s'
+                % (file_path, missing, headers)
+            )
+
+    def _process_rows(self, reader: csv.DictReader, file_path: str) -> List[Product]:
+        products = []
+        processed_rows = 0
+        skipped_rows = 0
+
+        for row_num, row in enumerate(reader, start=2):  # 1st line - headers
+            try:
+                if self.validator.is_empty_row(row):
+                    debug_print(
+                        'Предупреждение: Пропуск пустой строки %d в файле %s'
+                        % (row_num, file_path)
+                    )
+                    skipped_rows += 1
+                    continue
+
+                product = self._create_product_from_row(row)
+                products.append(product)
+                processed_rows += 1
+
+            except (ValueError, KeyError) as e:
+                debug_print(
+                    'Предупреждение: Пропуск пустой строки %d в файле %s'
+                    % (row_num, file_path)
+                )
+                skipped_rows += 1
+                continue
+
+        debug_print(
+            'Файл %s: обработано %d строк, пропущено %d строк'
+            % (file_path, processed_rows, skipped_rows)
+        )
+        return products
+
+    def _create_product_from_row(self, row: dict) -> Product:
+        raw_data = {
+            "name": row.get('name'),
+            "brand": row.get('brand'),
+            "price": row.get('price'),
+            "rating": row.get('rating'),
+        }
+
+        self.validator.validate_required_fields(raw_data)
+
+        processed_data = {
+            "name": self.converter.safe_strip(raw_data['name']),
+            "brand": self.converter.safe_strip(raw_data['brand']).lower(),
+            "price": self.converter.safe_float(raw_data['price']),
+            "rating": self.converter.safe_float(raw_data['rating']),
+        }
+
+        self.validator.validate_rating(processed_data['rating'])
+
+        return Product(**processed_data)
