@@ -3,7 +3,6 @@ Data Transfer Objects (DTO) для проекта.
 """
 
 from dataclasses import dataclass
-from typing import List, Optional
 
 
 @dataclass
@@ -21,7 +20,7 @@ class Product:
 
 
 @dataclass
-class BrandStats:
+class BrandStatistics:
     """DTO для статистики бренда."""
     brand: str
     average_rating: float
