@@ -5,44 +5,48 @@
 from typing import Any
 
 
-def safe_strip(value: Any) -> str:
-    """
-    Безопасно применяет strip() к значению, обрабатывая None и не строковые значения.
+class DataConverter:
+    """Конвертер данных продуктов."""
 
-    :param value: Значение для обработки
+    @staticmethod
+    def safe_strip(value: Any) -> str:
+        """
+        Безопасно применяет strip() к значению, обрабатывая None и не строковые значения.
 
-    :return: Очищенная строка или пустая строка, если значение None
-    """
-    if value is None:
-        return ""
+        :param value: Значение для обработки
 
-    # Преобразуем в строку, если это не строка
-    if not isinstance(value, str):
-        value = str(value)
+        :return: Очищенная строка или пустая строка, если значение None
+        """
+        if value is None:
+            return ""
 
-    return value.strip()
+        # Преобразуем в строку, если это не строка
+        if not isinstance(value, str):
+            value = str(value)
 
+        return value.strip()
 
-def safe_float(value: Any) -> float:
-    """
-    Безопасно преобразует значение в float, обрабатывая None и некорректные значения.
+    @staticmethod
+    def safe_float(value: Any) -> float:
+        """
+        Безопасно преобразует значение в float, обрабатывая None и некорректные значения.
 
-    :param value: Значение для преобразования
+        :param value: Значение для преобразования
 
-    :return: Число с плавающей точкой
+        :return: Число с плавающей точкой
 
-    :raise ValueError: Если значение не может быть преобразовано в число
-    """
-    if value is None:
-        raise ValueError('Значение не может быть None')
+        :raise ValueError: Если значение не может быть преобразовано в число
+        """
+        if value is None:
+            raise ValueError('Value cannot be None')
 
-    # Если это строка, очищаем ее
-    if isinstance(value, str):
-        value = value.strip()
-        if value == "":
-            raise ValueError('Значение не может быть пустой строкой')
+        # Если это строка, очищаем ее
+        if isinstance(value, str):
+            value = value.strip()
+            if value == "":
+                raise ValueError('Value cannot be empty string')
 
-    try:
-        return float(value)
-    except (ValueError, TypeError) as e:
-        raise ValueError('Невозможно преобразовать %s в число: %s' % (value, e))
+        try:
+            return float(value)
+        except (ValueError, TypeError) as e:
+            raise ValueError('Cannot convert %s to number: %s' % (value, e))

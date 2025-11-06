@@ -5,51 +5,53 @@
 from typing import Dict, Any
 
 
-def is_empty_row(row: Dict[str, Any]) -> bool:
-    """
-    Проверяет, является ли строка пустой.
-    Строка считается пустой, если все значения None, пустые строки или строки только из пробелов.
+class DataValidator:
+    """Валидатор данных продуктов."""
 
-    :param row: Словарь с данными строки
+    @staticmethod
+    def is_empty_row(row: Dict[str, Any]) -> bool:
+        """
+        Проверяет, является ли строка пустой.
+        Строка считается пустой, если все значения None, пустые строки или строки только из пробелов.
 
-    :return: True - если строка пустая, иначе - False
-    """
-    if not row:
+        :param row: Словарь с данными строки
+
+        :return: True - если строка пустая, иначе - False
+        """
+        if not row:
+            return True
+
+        for value in row.values():
+            if value is not None and str(value).strip():
+                return False
+
         return True
 
-    for value in row.values():
-        # Если значение не None и после strip() не пустое - строка не пустая
-        if value is not None and str(value).strip() != "":
-            return False
+    @staticmethod
+    def validate_required_fields(product_data: Dict[str, Any]) -> None:
+        """
+        Проверяет, что все обязательные поля заполнены.
 
-    return True
+        :param product_data: Словарь с данными продукта
 
+        :raise ValueError: Если какое-либо обязательное поле пустое
+        """
+        name = product_data.get('name')
+        brand = product_data.get('brand')
 
-def validate_required_fields(product: Dict[str, Any]) -> None:
-    """
-    Проверяет, что все обязательные поля заполнены.
+        if not name or (isinstance(name, str) and not name.strip()):
+            raise ValueError('Product name cannot be empty')
+        if not brand or (isinstance(brand, str) and not brand.strip()):
+            raise ValueError('Brand cannot be empty')
 
-    :param product: Словарь с данными продукта
+    @staticmethod
+    def validate_rating(rating: float) -> None:
+        """
+        Проверяет корректность рейтинга.
 
-    :raise ValueError: Если какое-либо обязательное поле пустое
-    """
-    name = product.get('name')
-    brand = product.get('brand')
+        :param rating: Рейтинг для проверки
 
-    # Проверяем, что поля не None и не пустые/пробельные
-    if not name or (isinstance(name, str) and not name.strip()):
-        raise ValueError('Название продукта не может быть пустым')
-    if not brand or (isinstance(brand, str) and not brand.strip()):
-        raise ValueError('Бренд не может быть пустым')
-
-
-def validate_rating(rating: float) -> None:
-    """
-    Проверяет корректность рейтинга.
-
-    :param rating: Рейтинг для проверки
-
-    :raise ValueError: Если рейтинг не в диапазоне от 0 до 5
-    """
-    if not 0 <= rating <= 5:
-        raise ValueError('Рейтинг должен быть от 0 до 5, получено: %.2f' % rating)
+        :raise ValueError: Если рейтинг не в диапазоне от 0 до 5
+        """
+        if not 0 <= rating <= 5:
+            raise ValueError('Rating must be between 0 and 5, got %.2f' % rating)
