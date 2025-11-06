@@ -1,9 +1,12 @@
+"""
+Основной скрипт для анализа рейтингов брендов.
+"""
+
 import argparse
 
+from core.analyzer import BrandRatingAnalyzer
 from core.debug import set_debug_mode, debug_print, error_print
-from core.reader import read_product_files
-from core.calculator import calculate_brand_ratings
-from core.reporter import generate_report
+
 
 
 def main() -> int:
@@ -17,27 +20,37 @@ def main() -> int:
         epilog='''
         Примеры использования:
             python main.py --files products1.csv products2.csv --report average-rating
-            python main.py --files data/*.csv --report average-rating
+            python main.py -f data/*.csv -r average-rating
+            python main.py --list-reports
         '''
     )
 
-    # Добавляем аргументы
-    parser.add_argument(
-        # '--files', '-f',
-        '--files',
-        nargs='+',  # Принимает один или несколько файлов
-        required=True,
+    analyzer = BrandRatingAnalyzer()
+
+    # Основная mutually exclusive группа
+    main_group = parser.add_mutually_exclusive_group()
+
+    main_group.add_argument(
+        '--list-reports',
+        action='store_true',
+        help='Показать доступные отчеты'
+    )
+
+    # Группа аргументов для анализа (требуется, если не --list-reports)
+    analysis_group = parser.add_argument_group('аргументы анализа')
+    analysis_group.add_argument(
+        '--files', '-f',
+        nargs='+',
         help='Пути к CSV файлам с данными о продуктах'
     )
 
-    parser.add_argument(
-        '--report',
-        choices=['average-rating'],  # Пока только один тип отчета, но легко расширяемо
-        required=True,
+    analysis_group.add_argument(
+        '--report', '-r',
+        choices=analyzer.get_available_reports(),
         help='Тип отчета для генерации'
     )
 
-    # DEBUG
+    # Общие аргументы (доступны всегда)
     parser.add_argument(
         '--debug',
         action='store_true',
@@ -46,26 +59,27 @@ def main() -> int:
 
     args = parser.parse_args()
 
+    if args.list_reports:
+        print('Доступные отчеты:')
+        for report in analyzer.get_available_reports():
+            print('  - %s' % report)
+        return 0
+
+    if not args.files or not args.report:
+        parser.error('для анализа требуются --files и --report (или используйте --list-reports)')
+
     # Устанавливаем debug режим для всех модулей
     set_debug_mode(args.debug)
 
     try:
-        # Читаем данные из всех переданных файлов
-        debug_print('Чтение файлов %s' % ", ".join(args.files))
-        products = read_product_files(args.files)
-        debug_print('Прочитано %d записей о продуктах' % len(products))
-
-        # Вычисляем средние рейтинги по брендам
-        brand_ratings = calculate_brand_ratings(products)
-        debug_print('Обработано %d брендов' % len(brand_ratings))
-
         # Генерируем и выводим отчет
+        debug_print('Чтение файлов: %s' % ", ".join(args.files))
+        result = analyzer.analyze(args.files, args.report)
+
         debug_print('\nОтчет: %s' % args.report)
         debug_print('=' * 40)
 
-        report_table = generate_report(args.report, brand_ratings)
-
-        print(report_table)
+        print(result)
 
     except FileNotFoundError as e:
         error_print('Ошибка: файл не найден - %s' % e)
