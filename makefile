@@ -34,7 +34,7 @@ test:
 
 # Run tests with coverage
 test-cov:
-	poetry run pytest --cove=core tests/
+	poetry run pytest --cov=core tests/
 
 # Run all checks
 check: lint type-check test
