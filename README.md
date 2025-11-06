@@ -31,10 +31,16 @@ poetry shell
 # Активируйте виртуальное окружение если еще не активировано
 poetry shell
 
-# Запуск скрипта (только финальный отчет)
+# Показать доступные отчеты
+python main.py --list-reports
+
+# Запустить анализ
 python main.py --files products1.csv products2.csv --report average-rating
 
-# Запуск скрипта - Debug режим (все принты + отчет)
+# Сокращенная версия
+python main.py -f products.csv -r average-rating
+
+# С debug
 python main.py --fils products1.csv --report average-rating --debug
 ```
 
