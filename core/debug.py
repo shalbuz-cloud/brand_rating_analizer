@@ -3,6 +3,7 @@
 """
 
 import sys
+from typing import Any
 
 # Глобальная переменная для режима отладки
 _DEBUG = False
@@ -18,7 +19,7 @@ def set_debug_mode(debug: bool) -> None:
     _DEBUG = debug
 
 
-def debug_print(*args, **kwargs) -> None:
+def debug_print(*args: Any, **kwargs: Any) -> None:
     """
     Выводит сообщение только, если включен debug-режим.
 
@@ -29,7 +30,7 @@ def debug_print(*args, **kwargs) -> None:
         print(*args, **kwargs)
 
 
-def error_print(*args, **kwargs) -> None:
+def error_print(*args: Any, **kwargs: Any) -> None:
     """
     Выводит сообщение об ошибке (всегда, независимо от debug-режима).
 

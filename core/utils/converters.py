@@ -20,11 +20,7 @@ class DataConverter:
         if value is None:
             return ""
 
-        # Преобразуем в строку, если это не строка
-        if not isinstance(value, str):
-            value = str(value)
-
-        return value.strip()
+        return str(value).strip()
 
     @staticmethod
     def safe_float(value: Any) -> float:
@@ -38,15 +34,15 @@ class DataConverter:
         :raise ValueError: Если значение не может быть преобразовано в число
         """
         if value is None:
-            raise ValueError('Value cannot be None')
+            raise ValueError("Value cannot be None")
 
         # Если это строка, очищаем ее
         if isinstance(value, str):
             value = value.strip()
             if value == "":
-                raise ValueError('Value cannot be empty string')
+                raise ValueError("Value cannot be empty string")
 
         try:
             return float(value)
         except (ValueError, TypeError) as e:
-            raise ValueError('Cannot convert %s to number: %s' % (value, e))
+            raise ValueError("Cannot convert %s to number: %s" % (value, e)) from e
