@@ -106,6 +106,7 @@ brand_rating_analyzer/
 ```
 
 ## Разработка
+
 ```bash
 # Установка dev-зависимостей
 make install
@@ -142,80 +143,171 @@ make help
 
 Архитектура проекта позволяет легко добавлять новые типы отчетов.
 
-1. Добавьте новую функцию отчета в `core/reporter.py`
-
-```python
-def _generate_average_price_report(brand_data: List[Dict[str, Any]]) -> str:
-    """
-    Генерирует отчет со средними ценами по брендам.
-    """
-    table_data = []
-    for index, brand_info in enumerate(brand_data, start=1):
-        table_data.append([
-            index,
-            brand_info['brand'],
-            brand_info['average_price'],
-        ])
-
-    table = tabulate(
-        table_data,
-        headers=['', 'brand', 'average_price'],
-        tablefmt='grid',
-        stralign='center',
-        numalign='center',
-    )
-    return table
+```text
+core/reports/
+├── init.py
+├── base.py  # Фабрика отчетов (ReportFactory)
+└── (ваш_отчет).py # Новый класс отчета
 ```
 
-2. Обновите функцию `generate_report`
+#### 1. Создайте новый класс отчета
+
+Создайте новый файл в папке `core/reports/` или добавьте класс в существующий файл:
 
 ```python
-def generate_report(report_type: str, brand_data: List[Dict[str, Any]]) -> str:
-    if report_type == "average-rating":
-        return _generate_average_rating_report(brand_data)
-    elif report_type == "average-price":  # Новый тип отчета
-        return _generate_average_price_report(brand_data)
-    else:
-        raise ValueError('Неизвестный тип отчета: %s' % report_type)
-```
+from core.reports import Report
+from core.models import BrandStatistics
+from tabulate import tabulate
 
-3. Обновите калькулятор для расчета новых метрик
 
-```python
-def calculate_brand_prices(products: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+class AveragePriceReport(Report):
     """
-    Вычисляет среднюю цену для каждого бренда.
+    Отчет по средним ценам по брендам.
+    Реализует паттерн Strategy для генерации отчетов.
     """
-    brand_stats = defaultdict(lambda: {"total_price": 0, "count": 0})
-    
-    for product in products:
-        brand = product['brand'].strip().lower()
-        price = product['price']
+
+    @property
+    def name(self) -> str:
+        """Уникальный идентификатор отчета."""
+        return "average-price"
+
+    def generate(self, data: list[BrandStatistics]) -> str:
+        """
+        Генерирует табличный отчет со средними ценами.
         
-        brand_stats[brand]['total_price'] += price
-        brand_stats[brand]['count'] += 1
-    
-    result = []
-    for brand, stats in brand_stats.items():
-        average_price = stats['total_price'] / stats['count']
-        result.append({
-            "brand": brand,
-            "average_price": round(average_price, 2),
-            "product_count": stats['count']
-        })
-    
-    result.sort(key=lambda x: x['average_price'], reverse=True)
-    return result
+        :param data: Статистические данные по брендам
+        :return: Отформатированная таблица в виде строки
+        """
+        table_data = []
+        for index, stats in enumerate(data, start=1):
+            table_data.append([
+                index,
+                stats.brand,
+                f"${stats.average_price:.2f}",  # Форматирование цены
+            ])
+
+        return tabulate(
+            table_data,
+            headers=['', 'brand', 'average_price'],
+            tablefmt='grid',
+            stralign='center',
+            numalign='center',
+        )
 ```
 
-4. Обновите main.py для обработки нового отчета
+#### 2. Зарегистрируйте отчет в фабрике
+
+Добавьте регистрацию в `core/reports/base.py`:
 
 ```python
-# В main.py после чтения данных
-if args.report == 'average-rating':
-    brand_data = calculate_brand_ratings(products)
-elif args.report == 'average-price':
-    brand_data = calculate_brand_prices(products)
+from .base import Report, ReportFactory
+from .average_rating import AverageRatingReport
+from .average_price import AveragePriceReport
 
-report_table = generate_report(args.report, brand_data)
+# Регистрируем отчеты
+ReportFactory.register('average-rating', AverageRatingReport)
+ReportFactory.register('average-price', AveragePriceReport)
+
+# Для обратной совместимости
+__all__ = ['Report', 'ReportFactory', 'AverageRatingReport', 'AveragePriceReport']
+```
+
+#### 3. Добавьте новый калькулятор статистик (если нужно)
+
+Если для отчета нужны новые метрики, создайте калькулятор в `core/calculator.py`:
+
+```python
+class BrandPriceCalculator(StatisticsCalculator):
+    """
+    Калькулятор средних цен по брендам.
+    Наследует абстрактный класс StatisticsCalculator.
+    """
+    
+    def calculate(self, products: List[Product]) -> List[BrandStatistics]:
+        """Вычисляет средние цены для всех брендов."""
+        if not products:
+            return []
+        
+        brand_stats = defaultdict(lambda: {"total_price": 0, "count": 0})
+        
+        for product in products:
+            brand_stats[product.brand]["total_price"] += product.price
+            brand_stats[product.brand]["count"] += 1
+        
+        statistics = []
+        for brand, stats in brand_stats.items():
+            avg_price = stats["total_price"] / stats["count"]
+            statistics.append(BrandStatistics(
+                brand=brand,
+                average_price=round(avg_price, 2),  # Новая метрика
+                product_count=stats["count"]
+            ))
+        
+        return sorted(statistics, key=lambda x: x.average_price, reverse=True)
+```
+
+#### 4. Обновите модель BrandStatistics (если нужно)
+
+Добавьте новые поля в `core/models.py`:
+
+```python
+@dataclass
+class BrandStatistics:
+    """DTO для статистики бренда с расширенными метриками."""
+    
+    brand: str
+    average_rating: float = None
+    average_price: float = None        # Новая метрика
+    product_count: int = None
+    
+    def __post_init__(self):
+        """Округляет числовые значения."""
+        if self.average_rating is not None:
+            self.average_rating = round(self.average_rating, 2)
+        if self.average_price is not None:
+            self.average_price = round(self.average_price, 2)
+```
+
+#### 5. Обновите Analyzer для поддержки нового отчета
+
+Модифицируйте `core/analyzer.py`:
+
+```python
+class BrandRatingAnalyzer:
+    """Фасад для анализа данных с поддержкой различных отчетов."""
+    
+    def __init__(self):
+        self.reader = CSVProductReader(DataValidator(), DataConverter())
+        self.rating_calculator = BrandRatingCalculator()
+        self.price_calculator = BrandPriceCalculator()  # Новый калькулятор
+    
+    def analyze(self, file_paths: List[str], report_type: str) -> str:
+        """Выполняет анализ и генерирует указанный отчет."""
+        products = self.reader.read(file_paths)
+        
+        # Выбираем калькулятор в зависимости от типа отчета
+        if report_type == "average-rating":
+            statistics = self.rating_calculator.calculate(products)
+        elif report_type == "average-price":
+            statistics = self.price_calculator.calculate(products)
+        else:
+            statistics = self.rating_calculator.calculate(products)
+        
+        report = ReportFactory.create(report_type)
+        return report.generate(statistics)
+```
+
+#### 6. Использование нового отчета
+
+После добавления отчет автоматически становится доступен:
+
+```bash
+# Просмотр доступных отчетов
+python main.py --list-reports
+# Вывод:
+#   - average-rating
+#   - average-price
+
+# Использование нового отчета
+python main.py --files products.csv --report average-price
 ```
