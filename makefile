@@ -39,6 +39,17 @@ test-cov:
 # Run all checks
 check: lint type-check test
 
+# Auto-fix linting and formatting issues
+fix:
+	poetry run ruff check --fix
+	poetry run black .
+
+# Run all checks with auto-fix first
+check-fix: fix type-check test
+
+# Development workflow with auto-fix
+dev-fix: install check-fix
+
 # Clean up
 clean:
 	rm -rf .coverage
