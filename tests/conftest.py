@@ -16,9 +16,11 @@ def temp_csv_file():
     """
     temp_files = []
 
-    def _create_temp_csv(content: str, suffix: str = '.csv') -> str:
+    def _create_temp_csv(content: str, suffix: str = ".csv") -> str:
         """Создает временный CSV файл с заданным содержимым."""
-        with tempfile.NamedTemporaryFile(mode='w', suffix=suffix, delete=False, encoding='utf-8') as f:
+        with tempfile.NamedTemporaryFile(
+            mode="w", suffix=suffix, delete=False, encoding="utf-8"
+        ) as f:
             f.write(content)
             temp_file = f.name
             temp_files.append(temp_file)
